@@ -37,7 +37,7 @@ def Train():
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
     # saver.restore(sess, path_save_para+".\\model.ckpt")
-    data = sio.loadmat("./dataset/imagenet64.mat")
+    data = sio.loadmat("./dataset/imagenet_64.mat")
     labels = data["labels"][0, :]
     data = data["data"]
     for itr in range(TRAIN_ITR):
