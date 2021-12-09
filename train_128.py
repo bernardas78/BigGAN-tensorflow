@@ -1,30 +1,31 @@
-from networks_32 import Generator, Discriminator
+from networks_128 import Generator, Discriminator
 from ops import Hinge_loss, ortho_reg
 import tensorflow as tf
 import numpy as np
-from utils import truncated_noise_sample, read_cifar
+from utils import read_imagenet, truncated_noise_sample
 from PIL import Image
 import time
 import scipy.io as sio
+import os
 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=str(1)
 
-
-
-
-NUMS_CLASS = 10
-Z_DIM = 128
+NUMS_CLASS = 40
 BETA = 1e-4
-BATCH_SIZE = 64
+IMG_H = 128
+IMG_W = 128
+Z_DIM = 128
+BATCH_SIZE = 32
 TRAIN_ITR = 100000
-IMG_H = 32
-IMG_W = 32
 TRUNCATION = 2.0
 
 def Train():
-    x = tf.placeholder(tf.float32, [None, IMG_H, IMG_W, 3])
-    train_phase = tf.placeholder(tf.bool)
-    z = tf.placeholder(tf.float32, [None, Z_DIM])
-    y = tf.placeholder(tf.int32, [None])
+    tf.compat.v1.disable_eager_execution()
+    x = tf.compat.v1.placeholder(tf.float32, [None, IMG_H, IMG_W, 3])
+    train_phase = tf.compat.v1.placeholder(tf.bool)
+    z = tf.compat.v1.placeholder(tf.float32, [None, Z_DIM])
+    y = tf.compat.v1.placeholder(tf.int32, [None])
     G = Generator("generator")
     D = Discriminator("discriminator")
     fake_img = G(z, train_phase, y, NUMS_CLASS)
@@ -35,26 +36,21 @@ def Train():
     G_ortho = BETA * ortho_reg(G.var_list())
     D_loss += D_ortho
     G_loss += G_ortho
-    D_opt = tf.train.AdamOptimizer(1e-4, beta1=0., beta2=0.9).minimize(D_loss, var_list=D.var_list())
-    G_opt = tf.train.AdamOptimizer(4e-4, beta1=0., beta2=0.9).minimize(G_loss, var_list=G.var_list())
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver()
+    D_opt = tf.compat.v1.train.AdamOptimizer(1e-4, beta1=0., beta2=0.9).minimize(D_loss, var_list=D.var_list())
+    G_opt = tf.compat.v1.train.AdamOptimizer(4e-4, beta1=0., beta2=0.9).minimize(G_loss, var_list=G.var_list())
+    sess = tf.compat.v1.Session()
+    sess.run(tf.compat.v1.global_variables_initializer())
+    saver = tf.compat.v1.train.Saver()
     # saver.restore(sess, path_save_para+".\\model.ckpt")
-    data = np.concatenate((sio.loadmat("./dataset/data_batch_1.mat")["data"], sio.loadmat("./dataset/data_batch_2.mat")["data"],
-           sio.loadmat("./dataset/data_batch_3.mat")["data"], sio.loadmat("./dataset/data_batch_4.mat")["data"],
-           sio.loadmat("./dataset/data_batch_5.mat")["data"]), axis=0)
-    data = np.reshape(data, [50000, 3, 32, 32])
-    data = np.transpose(data, axes=[0, 2, 3, 1])
-    labels = np.concatenate((sio.loadmat("./dataset/data_batch_1.mat")["labels"], sio.loadmat("./dataset/data_batch_2.mat")["labels"],
-           sio.loadmat("./dataset/data_batch_3.mat")["labels"], sio.loadmat("./dataset/data_batch_4.mat")["labels"],
-           sio.loadmat("./dataset/data_batch_5.mat")["labels"]), axis=0)[:, 0]
+    data = sio.loadmat("./dataset/imagenet_128.mat")
+    labels = data["labels"][0, :]
+    data = data["data"]
     for itr in range(TRAIN_ITR):
         readtime = 0
         updatetime = 0
         for d in range(2):
             s_read = time.time()
-            batch, Y = read_cifar(data, labels, BATCH_SIZE)
+            batch, Y = read_imagenet(data, labels, BATCH_SIZE)
             e_read = time.time()
             readtime += e_read - s_read
             batch = batch / 127.5 - 1
@@ -64,12 +60,13 @@ def Train():
             e_up = time.time()
             updatetime += e_up - s_up
 
-        Z = truncated_noise_sample(BATCH_SIZE, Z_DIM, TRUNCATION)
         s = time.time()
+        Z = truncated_noise_sample(BATCH_SIZE, Z_DIM, TRUNCATION)
         sess.run(G_opt, feed_dict={z: Z, train_phase: True, y: Y})
         e = time.time()
         one_itr_time = e - s + updatetime + readtime
         if itr % 100 == 0:
+            Z = truncated_noise_sample(BATCH_SIZE, Z_DIM, TRUNCATION)
             Dis_loss = sess.run(D_loss, feed_dict={z: Z, x: batch, train_phase: False, y: Y})
             Gen_loss = sess.run(G_loss, feed_dict={z: Z, train_phase: False, y: Y})
             print("Iteration: %d, D_loss: %f, G_loss: %f, Read_time: %f, Updata_time: %f, One_itr_time: %f" % (itr, Dis_loss, Gen_loss, readtime, updatetime, one_itr_time))

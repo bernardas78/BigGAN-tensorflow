@@ -6,6 +6,10 @@ from utils import read_imagenet, truncated_noise_sample
 from PIL import Image
 import time
 import scipy.io as sio
+import os
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=str(1)
 
 NUMS_CLASS = 40
 BETA = 1e-4
@@ -17,10 +21,11 @@ TRAIN_ITR = 100000
 TRUNCATION = 2.0
 
 def Train():
-    x = tf.placeholder(tf.float32, [None, IMG_H, IMG_W, 3])
-    train_phase = tf.placeholder(tf.bool)
-    z = tf.placeholder(tf.float32, [None, Z_DIM])
-    y = tf.placeholder(tf.int32, [None])
+    tf.compat.v1.disable_eager_execution()
+    x = tf.compat.v1.placeholder(tf.float32, [None, IMG_H, IMG_W, 3])
+    train_phase = tf.compat.v1.placeholder(tf.bool)
+    z = tf.compat.v1.placeholder(tf.float32, [None, Z_DIM])
+    y = tf.compat.v1.placeholder(tf.int32, [None])
     G = Generator("generator")
     D = Discriminator("discriminator")
     fake_img = G(z, train_phase, y, NUMS_CLASS)
@@ -31,11 +36,11 @@ def Train():
     G_ortho = BETA * ortho_reg(G.var_list())
     D_loss += D_ortho
     G_loss += G_ortho
-    D_opt = tf.train.AdamOptimizer(1e-4, beta1=0., beta2=0.9).minimize(D_loss, var_list=D.var_list())
-    G_opt = tf.train.AdamOptimizer(4e-4, beta1=0., beta2=0.9).minimize(G_loss, var_list=G.var_list())
-    sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver()
+    D_opt = tf.compat.v1.train.AdamOptimizer(1e-4, beta1=0., beta2=0.9).minimize(D_loss, var_list=D.var_list())
+    G_opt = tf.compat.v1.train.AdamOptimizer(4e-4, beta1=0., beta2=0.9).minimize(G_loss, var_list=G.var_list())
+    sess = tf.compat.v1.Session()
+    sess.run(tf.compat.v1.global_variables_initializer())
+    saver = tf.compat.v1.train.Saver()
     # saver.restore(sess, path_save_para+".\\model.ckpt")
     data = sio.loadmat("./dataset/imagenet_64.mat")
     labels = data["labels"][0, :]

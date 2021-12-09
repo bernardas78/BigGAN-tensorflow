@@ -1,15 +1,15 @@
 import tensorflow as tf
-import tensorflow.contrib as contrib
+#import tensorflow.contrib as contrib
 
 
 def conditional_batchnorm(x, train_phase, scope_bn, splited_z=None, y=None, nums_class=10):
     #Batch Normalization
     #Ioffe S, Szegedy C. Batch normalization: accelerating deep network training by reducing internal covariate shift[J]. 2015:448-456.
-    with tf.variable_scope(scope_bn):
+    with tf.compat.v1.variable_scope(scope_bn):
         if y == None:
-            beta = tf.get_variable(name=scope_bn + 'beta', shape=[x.shape[-1]],
+            beta = tf.compat.v1.get_variable(name=scope_bn + 'beta', shape=[x.shape[-1]],
                                    initializer=tf.constant_initializer([0.]), trainable=True)  # label_nums x C
-            gamma = tf.get_variable(name=scope_bn + 'gamma', shape=[x.shape[-1]],
+            gamma = tf.compat.v1.get_variable(name=scope_bn + 'gamma', shape=[x.shape[-1]],
                                     initializer=tf.constant_initializer([1.]), trainable=True)  # label_nums x C
         else:
             y = tf.one_hot(y, nums_class)
@@ -18,7 +18,7 @@ def conditional_batchnorm(x, train_phase, scope_bn, splited_z=None, y=None, nums
             beta = dense("beta", z, x.shape[-1], None, True)
             gamma = tf.reshape(gamma, [-1, 1, 1, x.shape[-1]])
             beta = tf.reshape(beta, [-1, 1, 1, x.shape[-1]])
-        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments', keep_dims=True)
+        batch_mean, batch_var = tf.compat.v1.nn.moments(x, [0, 1, 2], name='moments', keep_dims=True)
         ema = tf.train.ExponentialMovingAverage(decay=0.5)
 
         def mean_var_with_update():
@@ -61,7 +61,7 @@ def non_local(name, inputs, update_collection, is_sn):
     h, w, num_channels = inputs.shape[1], inputs.shape[2], inputs.shape[3]
     location_num = h * w
     downsampled_num = location_num // 4
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         theta = conv("f", inputs, num_channels // 8, 1, 1, update_collection, is_sn)
         theta = tf.reshape(theta, [-1, location_num, num_channels // 8])
         phi = conv("h", inputs, num_channels // 8, 1, 1, update_collection, is_sn)
@@ -74,15 +74,15 @@ def non_local(name, inputs, update_collection, is_sn):
         g = tf.reshape(g, [-1, downsampled_num, num_channels // 2])
         attn_g = tf.matmul(attn, g)
         attn_g = tf.reshape(attn_g, [-1, h, w, num_channels // 2])
-        sigma = tf.get_variable("sigma_ratio", [], initializer=tf.constant_initializer(0.0))
+        sigma = tf.compat.v1.get_variable("sigma_ratio", [], initializer=tf.constant_initializer(0.0))
         attn_g = conv("attn", attn_g, num_channels, 1, 1, update_collection, is_sn)
         return inputs + sigma * attn_g
 
 def conv(name, inputs, nums_out, k_size, strides, update_collection=None, is_sn=False):
     nums_in = inputs.shape[-1]
-    with tf.variable_scope(name):
-        W = tf.get_variable("W", [k_size, k_size, nums_in, nums_out], initializer=tf.orthogonal_initializer())
-        b = tf.get_variable("b", [nums_out], initializer=tf.constant_initializer([0.0]))
+    with tf.compat.v1.variable_scope(name):
+        W = tf.compat.v1.get_variable("W", [k_size, k_size, nums_in, nums_out], initializer=tf.compat.v1.orthogonal_initializer())
+        b = tf.compat.v1.get_variable("b", [nums_out], initializer=tf.constant_initializer([0.0]))
         if is_sn:
             W = spectral_normalization("sn", W, update_collection=update_collection)
         con = tf.nn.conv2d(inputs, W, [1, strides, strides, 1], "SAME")
@@ -91,7 +91,7 @@ def conv(name, inputs, nums_out, k_size, strides, update_collection=None, is_sn=
 def upsampling(inputs):
     H = inputs.shape[1]
     W = inputs.shape[2]
-    return tf.image.resize_nearest_neighbor(inputs, [H * 2, W * 2])
+    return tf.compat.v1.image.resize_nearest_neighbor(inputs, [H * 2, W * 2])
 
 def downsampling(inputs):
     return tf.nn.avg_pool(inputs, [1, 2, 2, 1], [1, 2, 2, 1], "SAME")
@@ -100,7 +100,7 @@ def relu(inputs):
     return tf.nn.relu(inputs)
 
 def global_sum_pooling(inputs):
-    inputs = tf.reduce_sum(inputs, [1, 2], keep_dims=False)
+    inputs = tf.compat.v1.reduce_sum(inputs, [1, 2], keep_dims=False)
     return inputs
 
 def Hinge_loss(real_logits, fake_logits):
@@ -124,25 +124,25 @@ def ortho_reg(vars_list):
 
 def dense(name, inputs, nums_out, update_collection=None, is_sn=False):
     nums_in = inputs.shape[-1]
-    with tf.variable_scope(name):
-        W = tf.get_variable("W", [nums_in, nums_out], initializer=tf.orthogonal_initializer())
-        b = tf.get_variable("b", [nums_out], initializer=tf.constant_initializer([0.0]))
+    with tf.compat.v1.variable_scope(name):
+        W = tf.compat.v1.get_variable("W", [nums_in, nums_out], initializer=tf.compat.v1.orthogonal_initializer())
+        b = tf.compat.v1.get_variable("b", [nums_out], initializer=tf.constant_initializer([0.0]))
         if is_sn:
             W = spectral_normalization("sn", W, update_collection=update_collection)
     return tf.nn.bias_add(tf.matmul(inputs, W), b)
 
 def Inner_product(global_pooled, y, nums_class, update_collection=None):
     W = global_pooled.shape[-1]
-    V = tf.get_variable("V", [nums_class, W], initializer=tf.orthogonal_initializer())
+    V = tf.compat.v1.get_variable("V", [nums_class, W], initializer=tf.compat.v1.orthogonal_initializer())
     V = tf.transpose(V)
     V = spectral_normalization("embed", V, update_collection=update_collection)
     V = tf.transpose(V)
     temp = tf.nn.embedding_lookup(V, y)
-    temp = tf.reduce_sum(temp * global_pooled, axis=1, keep_dims=True)
+    temp = tf.compat.v1.reduce_sum(temp * global_pooled, axis=1, keep_dims=True)
     return temp
 
 def G_Resblock(name, inputs, nums_out, is_training, splited_z, y, nums_class):
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         temp = tf.identity(inputs)
         inputs = conditional_batchnorm(inputs, is_training, "bn1", splited_z, y, nums_class)
         inputs = relu(inputs)
@@ -157,7 +157,7 @@ def G_Resblock(name, inputs, nums_out, is_training, splited_z, y, nums_class):
     return inputs + temp
 
 def D_Resblock(name, inputs, nums_out, update_collection=None, is_down=True):
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         temp = tf.identity(inputs)
         inputs = relu(inputs)
         inputs = conv("conv1", inputs, nums_out, 3, 1, update_collection, is_sn=True)
@@ -173,7 +173,7 @@ def D_Resblock(name, inputs, nums_out, update_collection=None, is_down=True):
     return inputs + temp
 
 def D_FirstResblock(name, inputs, nums_out, update_collection, is_down=True):
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         temp = tf.identity(inputs)
         inputs = conv("conv1", inputs, nums_out, 3, 1, update_collection=update_collection, is_sn=True)
         inputs = relu(inputs)
@@ -195,8 +195,8 @@ def spectral_normalization(name, weights, num_iters=1, update_collection=None,
                            with_sigma=False):
   w_shape = weights.shape.as_list()
   w_mat = tf.reshape(weights, [-1, w_shape[-1]])  # [-1, output_channel]
-  u = tf.get_variable(name + 'u', [1, w_shape[-1]],
-                      initializer=tf.truncated_normal_initializer(),
+  u = tf.compat.v1.get_variable(name + 'u', [1, w_shape[-1]],
+                      initializer=tf.compat.v1.truncated_normal_initializer(),
                       trainable=False)
   u_ = u
   for _ in range(num_iters):
@@ -211,7 +211,7 @@ def spectral_normalization(name, weights, num_iters=1, update_collection=None,
   else:
     w_bar = tf.reshape(w_mat, w_shape)
     if update_collection != 'NO_OPS':
-      tf.add_to_collection(update_collection, u.assign(u_))
+      tf.compat.v1.add_to_collection(update_collection, u.assign(u_))
   if with_sigma:
     return w_bar, sigma
   else:
