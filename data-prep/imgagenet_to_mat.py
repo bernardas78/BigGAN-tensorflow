@@ -15,7 +15,7 @@ img_size=256
 now = datetime.now()
 data_arr_for_mat = np.empty((0,img_size,img_size,3),dtype=np.uint8)
 labels_arr_for_mat = []
-tar_filenames = os.listdir(img_folder) [:40]    #top 40
+tar_filenames = os.listdir(img_folder) [:15]    #top 40
 cnt_images_planned = len(tar_filenames) * 1300 # 1300 - number of images  per class; actual count may differ if some images can't be added
 cntr_images_added = 0
 
@@ -64,8 +64,6 @@ for class_id, tar_filename in enumerate(tar_filenames):
                 #print("Ctr:{},class:{},sec:{}, concat_time:{}".format(cntr,class_id,(datetime.now() - now).seconds, concat_time/1000000))
                 concat_time = 0
 
-plt.imshow(image_arr)
-plt.show()
 print (image_arr.shape)
 print(data_arr_for_mat.shape)
 print( np.array(labels_arr_for_mat).reshape(1,-1).shape )
@@ -74,6 +72,8 @@ mat_dic = {"labels": np.array(labels_arr_for_mat).reshape(1,-1),
            "data": data_arr_for_mat[:cntr_images_added,:,:,:] }
 
 sio.savemat (r'D:\Labs\BigGAN-tensorflow.MingtaoGuo\BigGAN-tensorflow\dataset\imagenet_{}.mat'.format(img_size), mat_dic)
+plt.imshow(image_arr)
+plt.show()
 
 #    with tarfile.open(r'A:\ILSVRC14\ILSVRC2012_img_train\n01440764.tar') as tf:
 #        tarinfo = tf.getmember('n01440764_2708.JPEG')
