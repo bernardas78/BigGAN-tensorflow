@@ -1,3 +1,5 @@
+import pickle
+
 from networks_128 import Generator, Discriminator
 from ops import Hinge_loss, ortho_reg
 import tensorflow as tf
@@ -7,6 +9,7 @@ from PIL import Image
 import time
 import scipy.io as sio
 import os
+import pickle
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]=str(1)
@@ -43,7 +46,8 @@ def Train():
     saver = tf.compat.v1.train.Saver()
     # saver.restore(sess, path_save_para+".\\model.ckpt")
     #data = sio.loadmat("./dataset/imagenet_128.mat")
-    data = sio.loadmat("./dataset/sco_128.mat")
+    #data = sio.loadmat("./dataset/sco_128.mat")
+    data = pickle.load(open("./dataset/sco_128.pkl", 'rb'))
     labels = data["labels"][0, :]
     data = data["data"]
     for itr in range(TRAIN_ITR):
