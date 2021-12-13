@@ -2,7 +2,7 @@ import os
 import glob
 import scipy.io as sio
 import tarfile
-#import os
+import pickle
 import io
 import numpy as np
 from PIL import Image
@@ -12,13 +12,13 @@ from matplotlib import pyplot as plt
 #img_folder = r'A:\ILSVRC14\ILSVRC2012_img_train'
 img_folder = r"A:\IsKnown_Images\Aff_NE_Balanced\Bal_v14\Ind-0\*\*\*.jpg"
 
-cnt_classes_to_add = 40
+cnt_classes_to_add = 194
 
 img_size=128
 
 now = datetime.now()
-data_arr_for_mat = np.empty((0,img_size,img_size,3),dtype=np.uint8)
-labels_arr_for_mat = []
+#data_arr_for_mat = np.empty((0,img_size,img_size,3),dtype=np.uint8)
+#labels_arr_for_mat = np.empty((0,1),dtype=np.float64)
 all_filenames = glob.glob(img_folder)
 class_names = np.unique ( [ filename.split('\\')[-2] for filename in all_filenames ] ).tolist()
 class_names = class_names[:cnt_classes_to_add]
@@ -30,6 +30,7 @@ cnt_images_planned = len(all_filenames) # actual count may differ if some images
 cntr_images_added = 0
 
 data_arr_for_mat = np.empty((cnt_images_planned,img_size,img_size,3),dtype=np.uint8)
+labels_arr_for_mat = np.empty((cnt_images_planned),dtype=np.float64)
 
 concat_time = 0
 
@@ -60,7 +61,8 @@ for cntr, filename in enumerate(all_filenames):
         data_arr_for_mat[cntr_images_added,:,:,:] =  image_arr
         #data_arr_for_mat = np.concatenate ( (data_arr_for_mat, np.expand_dims(image_arr,0) ), axis=0 )
         #concat_time = concat_time + (datetime.now() - now1).seconds*1000000 + (datetime.now() - now1).microseconds
-        labels_arr_for_mat.append( np.float64(class_id) )
+        labels_arr_for_mat[cntr_images_added] = np.float64(class_id)
+        #labels_arr_for_mat.append( np.float64(class_id) )
         cntr_images_added += 1
     else:
         print ("file.dom!=3: {}".format(filename))
@@ -76,22 +78,12 @@ print (image_arr.shape)
 print(data_arr_for_mat.shape)
 print( np.array(labels_arr_for_mat).reshape(1,-1).shape )
 
-mat_dic = {"labels": np.array(labels_arr_for_mat).reshape(1,-1),
+mat_dic = {"labels": labels_arr_for_mat[:cntr_images_added].reshape(1,-1),
            "data": data_arr_for_mat[:cntr_images_added,:,:,:] }
 
-sio.savemat (r'D:\Labs\BigGAN-tensorflow.MingtaoGuo\BigGAN-tensorflow\dataset\sco_{}.mat'.format(img_size), mat_dic)
-plt.imshow(image_arr)
-plt.show()
+pickle.dump(mat_dic, open(r'D:\Labs\BigGAN-tensorflow.MingtaoGuo\BigGAN-tensorflow\dataset\sco_{}.pkl'.format(img_size), 'wb'))
+#sio.savemat (r'D:\Labs\BigGAN-tensorflow.MingtaoGuo\BigGAN-tensorflow\dataset\sco_{}.mat'.format(img_size), mat_dic)
 
-#    with tarfile.open(r'A:\ILSVRC14\ILSVRC2012_img_train\n01440764.tar') as tf:
-#        tarinfo = tf.getmember('n01440764_2708.JPEG')
-#        image = tf.extractfile(tarinfo)
-#        image = image.read()
-#        image = Image.open(io.BytesIO(image))
+#plt.imshow(image_arr)
+#plt.show()
 
-#mat_filename = r'D:\Labs\BigGAN-tensorflow.MingtaoGuo\BigGAN-tensorflow\dataset\imagenet64'
-#mat = sio.loadmat(mat_filename)
-#mat.keys()
-#Out[56]: dict_keys(['__header__', '__version__', '__globals__', 'labels', 'data'])
-#mat['data'].shape
-#Out[57]: (50869, 64, 64, 3)
